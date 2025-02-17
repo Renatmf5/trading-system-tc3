@@ -11,7 +11,7 @@ def on_message(ws, message):
     #global last_order_price, last_order_side
         # Verificar a variável de ambiente para determinar a URL do endpoint
     environment = os.getenv('ENV', 'development')
-    if environment == 'production':
+    if environment != 'development':
         api_url = 'http://localhost:80/api/v1'
         print("Ambiente de produção")
     else:
