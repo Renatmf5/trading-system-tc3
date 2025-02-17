@@ -78,4 +78,4 @@ if __name__ == "__main__":
         while True:
             time.sleep(1)  # Mantenha o script em execução
     except KeyboardInterrupt:
-        print("Script interrompido pelo usuário")
+        print("Script interrompido pelo usuárioo")
