@@ -19,7 +19,7 @@ After=network.target
 User=ec2-user
 Group=ec2-user
 WorkingDirectory=/home/ec2-user/trading-app
-ExecStart=/home/ec2-user/trading-app/venv/bin/main:app --host 0.0.0.0 --port 8080
+ExecStart=/home/ec2-user/trading-app/venv/bin/python /home/ec2-user/trading-app/main.py
 Restart=always
 
 [Install]
