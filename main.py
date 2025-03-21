@@ -3,6 +3,7 @@ import threading
 import time
 import requests
 import os
+import numpy as np
 from functions.indicadores.data_handler import get_historical_kliness
 from websocket import WebSocketApp
 
@@ -13,10 +14,10 @@ def on_message(ws, message):
     environment = os.getenv('ENV', 'development')
     if environment != 'development':
         api_url = 'http://localhost:80/api/v1'
-        print("Ambiente de produção")
+
     else:
-        api_url = 'http://localhost:80/api/v1'
-        print("Ambiente de dev")
+        api_url = 'http://localhost:8000/api/v1'
+
     data = json.loads(message)
     
     if 'k' in data:
@@ -24,11 +25,29 @@ def on_message(ws, message):
         is_candle_closed = candle['x']        
         
         if is_candle_closed:
-            print('Nova vela de 1 hora fechada:')
+            print('Nova vela de 15 minutos fechada:')
             time.sleep(1.5)
             # Fazer a chamada ao endpoint da FastAPI
-            target, result = get_historical_kliness("BTCUSDT", "1h")
+            action, close = get_historical_kliness("BTCUSDT", "15m")
             
+            payload = {
+            "action": str(action.tolist() if isinstance(action, np.ndarray) else action),
+            "close": close.tolist() if isinstance(close, np.ndarray) else close
+            }
+            
+            try:
+                # Fazer a chamada POST para a API
+                response = requests.post(f"{api_url}/manageTrading/SendTrade", json=payload)
+                
+                # Verificar a resposta da API
+                if response.status_code == 200:
+                    response_data = response.json()
+                    print({response_data.get('message')})
+                else:
+                    print(f"Erro ao enviar dados para a API: {response.status_code} - {response.text}")
+            except Exception as e:
+                print(f"Erro ao chamar a API: {e}")
+            """
             try:
                 response = requests.get(f"{api_url}/manageOrders/getOpenPositions", params={"symbol": "BTCUSDT"})
                 if response.status_code == 200:
@@ -41,7 +60,6 @@ def on_message(ws, message):
                 print(f"Erro ao chamar o endpoint da FastAPI: {e}")
             
             #open_orders = get_open_positions("BTCUSDT")
-            """
             if not open_orders:
                 if historical_klines.iloc[-1]['open_time'] != candle['t']:
                     historical_klines = historical_klines[:-1]  # Remove o último registro do DataFrame
@@ -62,7 +80,7 @@ def on_open(ws):
     print("Conexão estabelecida")
 
 def connect_websocket():
-    websocket_url = "wss://fstream.binance.com/ws/btcusdt@kline_1h"
+    websocket_url = "wss://fstream.binance.com/ws/btcusdt@kline_15m"
     ws = WebSocketApp(websocket_url,
                       on_open=on_open,
                       on_message=on_message,
@@ -78,4 +96,4 @@ if __name__ == "__main__":
         while True:
             time.sleep(1)  # Mantenha o script em execução
     except KeyboardInterrupt:
-        print("Script interrompido pelo usuárioo")
+        print("Script interrompido pelo usuário")
