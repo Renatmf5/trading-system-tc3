@@ -11,6 +11,10 @@ echo "AfterInstall: Criando ambiente virtual" | tee -a ${LOG_FILE}
 python3 -m venv venv || { echo "Erro: Falha ao criar o ambiente virtual" | tee -a ${LOG_FILE}; exit 1; }
 source venv/bin/activate || { echo "Erro: Falha ao ativar o ambiente virtual" | tee -a ${LOG_FILE}; exit 1; }
 
+# Atualizar o pip para a versão mais recente
+echo "AfterInstall: Atualizando o pip" | tee -a ${LOG_FILE}
+pip install --upgrade pip || { echo "Erro: Falha ao atualizar o pip" | tee -a ${LOG_FILE}; exit 1; }
+
 echo "AfterInstall: Instalando dependências" | tee -a ${LOG_FILE}
 pip install -r requirements.txt || { echo "Erro: Falha ao instalar dependências" | tee -a ${LOG_FILE}; exit 1; }
 
@@ -34,4 +38,4 @@ EOF'
 
 # Recarregar systemd para aplicar as mudanças
 echo "AfterInstall: Recarregando systemd" | tee -a ${LOG_FILE}
-sudo systemctl daemon-reload || { echo "Erro: Falha ao recarregar o systemd" | tee -a ${LOG_FILE}; exit 1; }v
+sudo systemctl daemon-reload || { echo "Erro: Falha ao recarregar o systemd" | tee -a ${LOG_FILE}; exit 1; }
