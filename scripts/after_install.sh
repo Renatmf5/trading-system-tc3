@@ -1,19 +1,21 @@
 #!/bin/bash
 DIR="/home/ec2-user/trading-app"
-echo "AfterInstall: Iniciando script" | tee -a /home/ec2-user/trading-app/deploy.log
+LOG_FILE="/home/ec2-user/trading-app/deploy.log"
+
+echo "AfterInstall: Iniciando script" | tee -a ${LOG_FILE}
 sudo chown -R ec2-user:ec2-user ${DIR}
-cd ${DIR} || { echo "Erro: Não foi possível acessar o diretório ${DIR}"; exit 1; }
+cd ${DIR} || { echo "Erro: Não foi possível acessar o diretório ${DIR}" | tee -a ${LOG_FILE}; exit 1; }
 
 # Criar ambiente virtual e instalar dependências
-echo "AfterInstall: Criando ambiente virtual" | tee -a /home/ec2-user/trading-app/deploy.log
-python3 -m venv venv || { echo "Erro: Falha ao criar o ambiente virtual"; exit 1; }
-source venv/bin/activate || { echo "Erro: Falha ao ativar o ambiente virtual"; exit 1; | tee -a /home/ec2-user/trading-app/deploy.log }
+echo "AfterInstall: Criando ambiente virtual" | tee -a ${LOG_FILE}
+python3 -m venv venv || { echo "Erro: Falha ao criar o ambiente virtual" | tee -a ${LOG_FILE}; exit 1; }
+source venv/bin/activate || { echo "Erro: Falha ao ativar o ambiente virtual" | tee -a ${LOG_FILE}; exit 1; }
 
-echo "AfterInstall: Instalando dependências"
-pip install -r requirements.txt || { echo "Erro: Falha ao instalar dependências"; exit 1; }
+echo "AfterInstall: Instalando dependências" | tee -a ${LOG_FILE}
+pip install -r requirements.txt || { echo "Erro: Falha ao instalar dependências" | tee -a ${LOG_FILE}; exit 1; }
 
 # Criar arquivo de serviço systemd para a aplicação
-echo "AfterInstall: Criando arquivo de serviço systemd" | tee -a /home/ec2-user/trading-app/deploy.log
+echo "AfterInstall: Criando arquivo de serviço systemd" | tee -a ${LOG_FILE}
 sudo bash -c 'cat <<EOF > /etc/systemd/system/trading-app.service
 [Unit]
 Description=First trading Application
@@ -31,5 +33,5 @@ WantedBy=multi-user.target
 EOF'
 
 # Recarregar systemd para aplicar as mudanças
-echo "AfterInstall: Recarregando systemd"
-sudo systemctl daemon-reload || { echo "Erro: Falha ao recarregar o systemd"; exit 1; }
+echo "AfterInstall: Recarregando systemd" | tee -a ${LOG_FILE}
+sudo systemctl daemon-reload || { echo "Erro: Falha ao recarregar o systemd" | tee -a ${LOG_FILE}; exit 1; }v
