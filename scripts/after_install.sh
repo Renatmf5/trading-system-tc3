@@ -1,6 +1,6 @@
 #!/bin/bash
 DIR="/home/ec2-user/trading-app"
-LOG_FILE="/home/ec2-user/trading-app/deploy.log"
+LOG_FILE="/home/ec2-user/trading-app/deploy2.log"
 
 echo "AfterInstall: Iniciando script" | tee -a ${LOG_FILE}
 sudo chown -R ec2-user:ec2-user ${DIR}
