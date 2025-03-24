@@ -28,3 +28,4 @@ EOF'
 
 # Recarregar systemd para aplicar as mudanças
 sudo systemctl daemon-reload
+
