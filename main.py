@@ -13,7 +13,7 @@ def on_message(ws, message):
         # Verificar a variável de ambiente para determinar a URL do endpoint
     environment = os.getenv('ENV', 'development')
     if environment != 'development':
-        api_url = 'http://localhost:80/api/v1'
+        api_url = 'https://api.grupo-ever-rmf.com/api/v1'
 
     else:
         api_url = 'https://api.grupo-ever-rmf.com/api/v1'

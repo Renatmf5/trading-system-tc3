@@ -1,3 +1,3 @@
 #!/bin/bash
-echo "ApplicationStop: Parando o serviço trading-app"
-sudo systemctl stop trading-app.service
+echo "ApplicationStop: Parando a aplicação existente"
+pkill python || true
