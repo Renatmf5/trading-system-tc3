@@ -16,7 +16,9 @@ def on_message(ws, message):
         api_url = 'https://api.grupo-ever-rmf.com/api/v1'
 
     else:
-        api_url = 'https://api.grupo-ever-rmf.com/api/v1'
+        # URL da API em ambiente de desenvolvimento
+        api_url =  'http://localhost:8000/api/v1'
+        #api_url = 'https://api.grupo-ever-rmf.com/api/v1'
 
     data = json.loads(message)
     

@@ -92,6 +92,7 @@ def process_candles(symbol, data_path, timeframe):
     xgboost_scaler = ler_parametros_scaler_do_s3(symbol, 'xgboost_scaler.pkl')
     lstm_scaler = ler_parametros_scaler_do_s3(symbol, 'lstm_scaler.pkl')
     mlp_scaler = ler_parametros_scaler_do_s3(symbol, 'mlp_scaler.pkl')
+    ppo_scaler = ler_parametros_scaler_do_s3(symbol, 'ppo_scaler.pkl')
 
     
     selected_columns_XGBoost = ['ema_20_diff','atr_14','macd_diff','macd_signal_diff', 'macd_hist','rsi_14','adx_14', 'bb_upper_diff','bb_middle_diff', 'bb_lower_diff', 'wma_14_diff', 'cci_20','stc','roc_10','mean_proportion_BTC','std_proportion_BTC','passado_1','passado_2','passado_3','proportion_taker_BTC', 'z_score_BTC' ,'proximo_topo_curto','proximo_fundo_curto','proximo_topo_medio','proximo_fundo_medio','proximo_topo_longo','proximo_fundo_longo']
@@ -109,9 +110,18 @@ def process_candles(symbol, data_path, timeframe):
     
     last_row_mlp = data_path[selected_columns_MLP]
     last_row_mlp_scaled = mlp_scaler.transform(last_row_mlp)
-    data_low_high_close = data_path[['low','high','close']].reset_index(drop=True)
     
-    return last_row_xgboost_scaled, last_row_lstm_scaled, last_row_mlp_scaled, data_low_high_close
+     # Adicionar as colunas de probabilidades e preços ao input do PPO
+    selected_columns_RL_PPO = [
+        'sma_5_diff', 'sma_20_diff', 'sma_50_diff', 'ema_20_diff', 
+        'mean_proportion_BTC', 'std_proportion_BTC', 'proportion_taker_BTC', 
+        'z_score_BTC', 'cci_20', 'stc', 'roc_10', 'cmo', 'obv', 
+        'mfi', 'tsi_stoch', 'dmi_plus', 'dmi_minus', 'adx']
+    last_row_ppo = data_path[selected_columns_RL_PPO]
+    last_row_ppo_scaled = ppo_scaler.transform(last_row_ppo)
+    
+    data_low_high_close = data_path[['low','high','close']].reset_index(drop=True)
+    return last_row_xgboost_scaled, last_row_lstm_scaled, last_row_mlp_scaled, data_low_high_close, last_row_ppo_scaled
     '''
    # Carregar o scaler do S3 e aplicar na last_row
     scaler = ler_parametros_scaler_do_s3(symbol)
@@ -145,8 +155,8 @@ def get_historical_kliness(symbol, interval, limit=760):
         # Converter timestamp para data e hora
         klines['open_time'] = pd.to_datetime(klines['open_time'], unit='ms')
         
-        last_row_xgboost_scaled, last_row_lstm_scaled, last_row_mlp_scaled, data_low_high_close = process_candles(symbol=symbol, data_path=klines, timeframe=interval)
-        action = preparar_dados_chama_models(last_row_xgboost_scaled, last_row_lstm_scaled, last_row_mlp_scaled, data_low_high_close)
+        last_row_xgboost_scaled, last_row_lstm_scaled, last_row_mlp_scaled, data_low_high_close, last_row_ppo_scaled = process_candles(symbol=symbol, data_path=klines, timeframe=interval)
+        action = preparar_dados_chama_models(last_row_xgboost_scaled, last_row_lstm_scaled, last_row_mlp_scaled, data_low_high_close, last_row_ppo_scaled)
         
         return action
     except Exception as e:
@@ -154,7 +164,7 @@ def get_historical_kliness(symbol, interval, limit=760):
         return None
       
 
-def preparar_dados_chama_models(data_path_xgb,data_path_lstm,data_path_mlp, data_low_high_close, alpha=1.0):
+def preparar_dados_chama_models(data_path_xgb,data_path_lstm,data_path_mlp, data_low_high_close, data_path_ppo, alpha=1.0):
     # Garantir que o DataFrame tenha pelo menos 29 registros para o LSTM
     ensemble_scaler = ler_parametros_scaler_do_s3('BTCUSDT', 'ensemble_scaler.pkl')
     
@@ -164,11 +174,19 @@ def preparar_dados_chama_models(data_path_xgb,data_path_lstm,data_path_mlp, data
     data_path_lstm = pd.DataFrame(data_path_lstm)
     data_path_xgb = pd.DataFrame(data_path_xgb)
     data_path_mlp = pd.DataFrame(data_path_mlp)
+    data_path_ppo = pd.DataFrame(data_path_ppo)
     #cortar o dataframe e manter apenas as ultimas 30 linhas
     data_path_lstm = data_path_lstm[-30:]
     data_path_xgb = data_path_xgb[-30:]
     data_path_mlp = data_path_mlp[-30:]
     data_low_high_close = data_low_high_close[-15:]
+    data_path_ppo = data_path_ppo[-15:]
+    # Renomear colunas do data Path ppo
+    data_path_ppo.columns = ['sma_5_diff', 'sma_20_diff', 'sma_50_diff', 'ema_20_diff', 
+        'mean_proportion_BTC', 'std_proportion_BTC', 'proportion_taker_BTC', 
+        'z_score_BTC', 'cci_20', 'stc', 'roc_10', 'cmo', 'obv', 
+        'mfi', 'tsi_stoch', 'dmi_plus', 'dmi_minus', 'adx']
+    
     
     # Lista para armazenar as previsões
     lstm_preds = []
@@ -209,12 +227,29 @@ def preparar_dados_chama_models(data_path_xgb,data_path_lstm,data_path_mlp, data
     meta_x_predict = ensemble_scaler.transform(meta_x_predict)
     
     ensemble_preds = ensemble_model.predict(meta_x_predict)
+    
     # pegar valor de close do ultimo candle
     close = data_low_high_close.iloc[-1]['close']
+    
         
     # Combinar as previsões com as colunas do DataFrame original
-    ppo_input = pd.DataFrame(meta_x_predict, columns=['lstm_pred', 'mlp_pred', 'xgboost_pred'])
-    ppo_input['ensemble_pred'] = ensemble_preds
+    ppo_input = pd.DataFrame(meta_x_predict, columns=['pred_lstm_proba', 'pred_xgb_proba', 'pred_mlp_proba'])
+    ppo_input['ensemble_signal'] = ensemble_preds
+    # Adicionar colunas do data_path_ppo ao ppo_input
+    ppo_input = pd.concat([ppo_input, data_path_ppo.reset_index(drop=True)], axis=1)
+    
+    # Definir as colunas esperadas e a ordem correta
+    required_columns = [
+        'sma_5_diff', 'sma_20_diff', 'sma_50_diff', 'ema_20_diff', 
+        'mean_proportion_BTC', 'std_proportion_BTC', 'proportion_taker_BTC', 
+        'z_score_BTC', 'cci_20', 'stc', 'roc_10', 'cmo', 'obv', 
+        'mfi', 'tsi_stoch', 'dmi_plus', 'dmi_minus', 'adx', 
+        'pred_lstm_proba', 'pred_xgb_proba', 'pred_mlp_proba', 
+        'ensemble_signal'
+    ]
+
+    # Garantir que o ppo_input contenha somente as colunas esperadas e na ordem correta
+    ppo_input = ppo_input[required_columns]
     
     action, _states = rl_ppo_model.predict(ppo_input, deterministic=True)
     
